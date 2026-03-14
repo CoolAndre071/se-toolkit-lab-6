@@ -1,58 +1,83 @@
-﻿# Agent Architecture (Task 1)
+﻿# Agent Architecture
 
 ## Overview
 
-`agent.py` is a minimal CLI agent for Task 1.
+`agent.py` is a CLI documentation agent that answers questions using an OpenAI-compatible chat API and local wiki tools.
 
-Flow:
+Current flow:
 
-1. Read user question from the first CLI argument.
+1. Parse question from CLI (`sys.argv[1]`).
 2. Load LLM settings from `.env.agent.secret`.
-3. Call an OpenAI-compatible `chat/completions` endpoint.
-4. Print one JSON line to stdout:
-   - `answer` (string)
-   - `tool_calls` (empty array in Task 1)
+3. Send system + user messages with tool schemas.
+4. Run an agentic loop:
+   - if model requests tools, execute tools and feed results back,
+   - if model returns a final response, parse `answer` and `source`.
+5. Print one JSON line to stdout.
 
-No agentic loop and no tools are used yet (added in later tasks).
+## LLM configuration
 
-## LLM provider and model
-
-Current plan uses:
-
-- Provider: Qwen Code API
-- Model: `qwen3-coder-plus`
-
-Environment variables required:
+Environment variables:
 
 - `LLM_API_KEY`
 - `LLM_API_BASE`
 - `LLM_MODEL`
 
-`agent.py` loads these from `.env.agent.secret`. Secrets are not hardcoded.
+`agent.py` reads `.env.agent.secret` and does not hardcode secrets.
 
-## Output and logging rules
+## Tooling
 
-- Stdout: only valid JSON output.
-- Stderr: errors and diagnostics.
+The agent defines two tools as function-calling schemas:
 
-On success, process exits with code `0`.
+1. `list_files(path)`
+2. `read_file(path)`
+
+### Path security
+
+All tool paths are resolved against project root.
+
+- Absolute paths are rejected.
+- `..` traversal outside project root is rejected.
+- Tools return readable error strings instead of crashing.
+
+## Agentic loop
+
+- The model can call tools up to 10 times per question.
+- Every executed tool call is stored in output `tool_calls` as:
+  - `tool`
+  - `args`
+  - `result`
+- Tool results are sent back to the model as `tool` role messages.
+- Loop ends when the model returns a normal assistant response (no tool calls), or when the tool-call cap is reached.
+
+## Prompt strategy
+
+The system prompt asks the model to:
+
+- discover docs with `list_files("wiki")`,
+- read relevant docs with `read_file(...)`,
+- return final output as JSON containing `answer` and `source`.
+
+## Output contract
+
+Stdout always contains one valid JSON object:
+
+- `answer` (string)
+- `source` (string)
+- `tool_calls` (array)
+
+All errors/diagnostics go to stderr.
 
 ## Run
 
 ```bash
-uv run agent.py "What does REST stand for?"
+uv run agent.py "How do you resolve a merge conflict?"
 ```
 
-Example output:
+## Tests (root folder)
 
-```json
-{"answer":"Representational State Transfer.","tool_calls":[]}
-```
+Regression tests are kept in the project root:
 
-## Testing
+- `test_agent_cli.py` (Task 1 contract)
+- `test_agent_task2.py` (Task 2 tool-calling behavior)
 
-Task 1 regression test:
-
-- `backend/tests/unit/test_agent_cli.py`
-
-The test starts a local fake chat-completions server, runs `agent.py` as a subprocess, parses stdout JSON, and verifies `answer` and `tool_calls` exist.
+Task 2 tests use a local fake LLM server to validate loop and tool usage without external API dependency.
