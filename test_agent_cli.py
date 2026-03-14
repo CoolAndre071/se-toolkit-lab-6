@@ -1,4 +1,4 @@
-﻿"""Regression tests for Task 1 agent CLI."""
+"""Regression tests for Task 1 agent CLI."""
 
 from __future__ import annotations
 
