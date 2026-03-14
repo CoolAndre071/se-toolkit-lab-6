@@ -1,4 +1,4 @@
-"""Regression tests for Task 1 agent CLI."""
+﻿"""Regression tests for Task 1 agent CLI."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parent
 
 
 class _FakeChatHandler(BaseHTTPRequestHandler):
